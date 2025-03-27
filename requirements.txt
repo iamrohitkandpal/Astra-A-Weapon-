@@ -1,0 +1,26 @@
+# GUI
+PyQt6==6.5.2
+
+# Networking
+scapy==2.5.0
+requests==2.31.0
+dnspython==2.4.2
+pysocks==1.7.1
+stem==1.8.1
+psutil==5.9.5
+
+# Async
+asyncio==3.4.3
+
+# Web parsing
+beautifulsoup4==4.12.2
+
+# Utilities
+python-dotenv==1.0.0
+
+# Reporting
+reportlab==4.0.4
+dominate==2.8.0
+
+# Packaging
+pyinstaller
