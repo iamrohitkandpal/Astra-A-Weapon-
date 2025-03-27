@@ -1,0 +1,65 @@
+{
+    "name": "Dark",
+    "author": "Astra Team",
+    "colors": {
+        "window": {
+            "background": "#2b2b2b",
+            "text": "#e0e0e0"
+        },
+        "sidebar": {
+            "background": "#1e1e1e",
+            "border": "#3a3a3a",
+            "section_label": "#8a8a8a"
+        },
+        "content": {
+            "background": "#2b2b2b"
+        },
+        "button": {
+            "background": "#3a3a3a",
+            "text": "#e0e0e0",
+            "hover_background": "#454545",
+            "checked_background": "#0078d7",
+            "checked_text": "#ffffff",
+            "disabled_background": "#2a2a2a",
+            "disabled_text": "#606060"
+        },
+        "title": {
+            "text": "#0078d7"
+        },
+        "input": {
+            "background": "#333333",
+            "border": "#555555",
+            "text": "#e0e0e0"
+        },
+        "checkbox": {
+            "background": "#333333",
+            "border": "#555555",
+            "checked_background": "#0078d7"
+        },
+        "group_box": {
+            "border": "#555555"
+        },
+        "table": {
+            "background": "#333333",
+            "alternate_background": "#3a3a3a",
+            "border": "#555555",
+            "header_background": "#2b2b2b",
+            "header_text": "#e0e0e0",
+            "selected_background": "#0078d7",
+            "selected_text": "#ffffff"
+        },
+        "progress_bar": {
+            "background": "#333333",
+            "text": "#e0e0e0",
+            "chunk": "#0078d7",
+            "border": "#555555"
+        },
+        "card": {
+            "background": "#333333",
+            "border": "#555555"
+        },
+        "label": {
+            "version": "#8a8a8a"
+        }
+    }
+}

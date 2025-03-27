@@ -1,0 +1,73 @@
+{
+    "name": "Hacker",
+    "author": "Astra Team",
+    "colors": {
+        "window": {
+            "background": "#0a0a0a",
+            "text": "#00ff00"
+        },
+        "sidebar": {
+            "background": "#0f0f0f",
+            "border": "#1a1a1a",
+            "section_label": "#008800"
+        },
+        "content": {
+            "background": "#0a0a0a"
+        },
+        "button": {
+            "background": "#1a1a1a",
+            "text": "#00ff00",
+            "hover_background": "#1a1a1a",
+            "hover_text": "#00ff8a",
+            "hover_border": "#00ff8a",
+            "border": "#00ff00",
+            "checked_background": "#00ff00",
+            "checked_text": "#000000",
+            "disabled_background": "#1a1a1a",
+            "disabled_text": "#005500",
+            "disabled_border": "#005500"
+        },
+        "title": {
+            "text": "#00ff00"
+        },
+        "input": {
+            "background": "#1a1a1a",
+            "border": "#00ff00",
+            "text": "#00ff00"
+        },
+        "checkbox": {
+            "background": "#1a1a1a",
+            "border": "#00ff00",
+            "checked_background": "#00ff00"
+        },
+        "group_box": {
+            "border": "#00ff00"
+        },
+        "table": {
+            "background": "#1a1a1a",
+            "alternate_background": "#0f0f0f",
+            "border": "#00ff00",
+            "header_background": "#1a1a1a",
+            "header_text": "#00ff00",
+            "selected_background": "#005500",
+            "selected_text": "#00ff00"
+        },
+        "progress_bar": {
+            "background": "#1a1a1a",
+            "text": "#00ff00",
+            "chunk": "#00ff00",
+            "border": "#00ff00"
+        },
+        "card": {
+            "background": "#1a1a1a",
+            "border": "#00ff00"
+        },
+        "label": {
+            "version": "#008800"
+        }
+    },
+    "special": {
+        "font_family": "monospace",
+        "border_radius": "0px"
+    }
+}
