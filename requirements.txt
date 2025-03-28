@@ -1,9 +1,27 @@
-# GUI
-PyQt6==6.5.2
+# Core dependencies
+PyQt6==6.5.0
+requests==2.28.2
+fpdf==1.7.2
+numpy==1.24.3
+beautifulsoup4==4.12.2
+
+# For ML-powered scanning
+scikit-learn==1.2.2
+tensorflow  # Optional, for more advanced deep learning models
+selenium==4.9.1
+webdriver-manager==3.8.6
+
+# For fuzzing and vulnerability detection
+beautifulsoup4==4.12.2
+lxml==4.9.2
+tldextract==3.4.1
+
+# For report generation
+jinja2==3.1.2
+matplotlib==3.7.1
 
 # Networking
 scapy==2.5.0
-requests==2.31.0
 dnspython==2.4.2
 pysocks==1.7.1
 stem==1.8.1
@@ -11,9 +29,6 @@ psutil==5.9.5
 
 # Async
 asyncio==3.4.3
-
-# Web parsing
-beautifulsoup4==4.12.2
 
 # Utilities
 python-dotenv==1.0.0
