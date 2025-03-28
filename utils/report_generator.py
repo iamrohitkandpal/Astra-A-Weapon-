@@ -1,202 +1,572 @@
 """
-Report generation utilities for Astra
+Report generator for Astra tool outputs
 """
 
 import os
+import time
 from datetime import datetime
-from pathlib import Path
-import random
-import string
+import webbrowser
+import json
 
-# For PDF generation
 try:
-    from reportlab.lib.pagesizes import letter
-    from reportlab.lib import colors
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-    from reportlab.lib.styles import getSampleStyleSheet
-    REPORTLAB_AVAILABLE = True
+    from fpdf import FPDF
+    PDF_AVAILABLE = True
 except ImportError:
-    REPORTLAB_AVAILABLE = False
-
-# For HTML generation
-try:
-    import dominate
-    from dominate.tags import *
-    DOMINATE_AVAILABLE = True
-except ImportError:
-    DOMINATE_AVAILABLE = False
+    PDF_AVAILABLE = False
 
 class ReportGenerator:
-    """Generate PDF and HTML reports from scan results"""
+    """Generate reports from scan results"""
     
-    def __init__(self, report_dir=None):
-        """Initialize the report generator"""
-        if report_dir:
-            self.report_dir = Path(report_dir)
-        else:
-            self.report_dir = Path("reports")
-        
+    def __init__(self):
         # Create reports directory if it doesn't exist
-        self.report_dir.mkdir(parents=True, exist_ok=True)
+        self.reports_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'reports')
+        os.makedirs(self.reports_dir, exist_ok=True)
     
-    def generate_pdf_report(self, title, data, scan_type, target):
-        """Generate a PDF report"""
-        if not REPORTLAB_AVAILABLE:
-            raise ImportError("reportlab is required for PDF generation")
+    def generate_pdf_report(self, title, results, scan_type, target):
+        """
+        Generate a PDF report
         
-        # Create a unique filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=5))
-        filename = f"{scan_type.lower().replace(' ', '_')}_{timestamp}_{random_suffix}.pdf"
-        filepath = self.report_dir / filename
-        
-        # Create the PDF document
-        doc = SimpleDocTemplate(str(filepath), pagesize=letter)
-        styles = getSampleStyleSheet()
-        elements = []
-        
-        # Add title
-        elements.append(Paragraph(title, styles['Title']))
-        elements.append(Spacer(1, 12))
-        
-        # Add scan information
-        elements.append(Paragraph(f"Target: {target}", styles['Heading2']))
-        elements.append(Paragraph(f"Scan Type: {scan_type}", styles['Heading2']))
-        elements.append(Paragraph(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Heading2']))
-        elements.append(Spacer(1, 12))
-        
-        # Add scan results table
-        if data:
-            # Convert data to table format
-            if isinstance(data[0], (list, tuple)):
-                # Data is already in table format
-                table_data = [["#", *[str(cell) for cell in data[0]]]]  # Header row
-                for i, row in enumerate(data):
-                    table_data.append([str(i+1), *[str(cell) for cell in row]])
-            else:
-                # Data is a list of items
-                table_data = [["#", "Result"]]  # Header row
-                for i, item in enumerate(data):
-                    table_data.append([str(i+1), str(item)])
+        Args:
+            title (str): Report title
+            results (list): Scan results
+            scan_type (str): Type of scan performed
+            target (str): Scan target (e.g., URL, hostname)
             
-            # Create the table
-            table = Table(table_data)
+        Returns:
+            str: Path to the generated PDF file
+        """
+        if not PDF_AVAILABLE:
+            raise ImportError("fpdf module not installed. Install it with 'pip install fpdf'")
             
-            # Style the table
-            style = TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 12),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-                ('ALIGN', (0, 0), (0, -1), 'CENTER'),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                ('FONTSIZE', (0, 1), (-1, -1), 10),
-                ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
-            ])
+        # Create PDF
+        pdf = FPDF()
+        pdf.add_page()
+        
+        # Set up title
+        pdf.set_font("Arial", "B", 16)
+        pdf.cell(0, 10, title, 0, 1, "C")
+        
+        # Date and time
+        pdf.set_font("Arial", "", 10)
+        pdf.cell(0, 10, f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", 0, 1, "R")
+        
+        # Scan details
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 10, "Scan Details", 0, 1)
+        
+        pdf.set_font("Arial", "", 10)
+        pdf.cell(0, 6, f"Scan Type: {scan_type}", 0, 1)
+        pdf.cell(0, 6, f"Target: {target}", 0, 1)
+        
+        # Results
+        if results:
+            pdf.add_page()
+            pdf.set_font("Arial", "B", 12)
+            pdf.cell(0, 10, "Scan Results", 0, 1)
             
-            # Apply alternating row colors
-            for i in range(1, len(table_data)):
-                if i % 2 == 0:
-                    style.add('BACKGROUND', (0, i), (-1, i), colors.white)
-            
-            table.setStyle(style)
-            elements.append(table)
-        else:
-            elements.append(Paragraph("No results found.", styles['Normal']))
-        
-        # Add footer
-        elements.append(Spacer(1, 20))
-        elements.append(Paragraph("Generated by Astra Ethical Hacking Toolkit", styles['Normal']))
-        
-        # Build the PDF
-        doc.build(elements)
-        
-        return str(filepath)
-    
-    def generate_html_report(self, title, data, scan_type, target):
-        """Generate an HTML report"""
-        if not DOMINATE_AVAILABLE:
-            raise ImportError("dominate is required for HTML generation")
-        
-        # Create a unique filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=5))
-        filename = f"{scan_type.lower().replace(' ', '_')}_{timestamp}_{random_suffix}.html"
-        filepath = self.report_dir / filename
-        
-        # Create the HTML document
-        doc = dominate.document(title=title)
-        
-        # Add styles
-        with doc.head:
-            style("""
-                body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
-                .container { max-width: 1000px; margin: 0 auto; background-color: white; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-                h1 { color: #0078d7; text-align: center; }
-                h2 { color: #444; }
-                .info { margin-bottom: 20px; }
-                table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                th { background-color: #0078d7; color: white; padding: 10px; text-align: left; }
-                td { padding: 8px; border-bottom: 1px solid #ddd; }
-                tr:nth-child(even) { background-color: #f2f2f2; }
-                tr:hover { background-color: #e6f2ff; }
-                .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #777; }
-                .note { font-style: italic; color: #666; }
-            """)
-        
-        # Build the HTML content
-        with doc:
-            with div(cls='container'):
-                h1(title)
+            # Add each result
+            for i, result in enumerate(results, 1):
+                pdf.set_font("Arial", "B", 10)
                 
-                with div(cls='info'):
-                    h2("Scan Information")
-                    p(f"Target: {target}")
-                    p(f"Scan Type: {scan_type}")
-                    p(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-                
-                h2("Scan Results")
-                
-                if data:
-                    # Create the table
-                    with table():
-                        with tr():
-                            th("#")
-                            # If data is in table format, use first row as headers
-                            if isinstance(data[0], (list, tuple)):
-                                for header in data[0]:
-                                    th(str(header))
-                            else:
-                                th("Result")
-                        
-                        # Add data rows
-                        if isinstance(data[0], (list, tuple)):
-                            # Skip the header row in data (already used for table headers)
-                            for i, row in enumerate(data):
-                                with tr():
-                                    td(str(i+1))
-                                    for cell in row:
-                                        td(str(cell))
-                        else:
-                            # Data is a list of items
-                            for i, item in enumerate(data):
-                                with tr():
-                                    td(str(i+1))
-                                    td(str(item))
+                # Handle different result formats
+                if isinstance(result, dict):
+                    # For JSON/dict format
+                    vulnerability = result.get('type', 'Unknown')
+                    vulnerability_url = result.get('url', 'N/A')
+                    description = result.get('description', 'No description')
+                    severity = result.get('severity', 'Unknown')
+                elif isinstance(result, tuple) and len(result) >= 3:
+                    # For tuple format (vulnerability, url, description, [severity])
+                    vulnerability = result[0]
+                    vulnerability_url = result[1]
+                    description = result[2]
+                    severity = result[3] if len(result) > 3 else 'Unknown'
                 else:
-                    p("No results found.", cls='note')
+                    # Generic fallback
+                    vulnerability = "Unknown"
+                    vulnerability_url = "N/A"
+                    description = str(result)
+                    severity = "Unknown"
                 
-                with div(cls='footer'):
-                    p("Generated by Astra Ethical Hacking Toolkit")
+                # Add result header
+                pdf.cell(0, 10, f"Finding #{i}: {vulnerability} [{severity}]", 0, 1)
+                
+                # Add details
+                pdf.set_font("Arial", "", 10)
+                pdf.cell(0, 6, f"URL: {vulnerability_url}", 0, 1)
+                
+                # Add wrapped description
+                pdf.multi_cell(0, 6, f"Description: {description}")
+                
+                # Add separator
+                pdf.cell(0, 6, "", 0, 1)
+                pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+                pdf.cell(0, 6, "", 0, 1)
+        else:
+            pdf.set_font("Arial", "", 10)
+            pdf.cell(0, 10, "No vulnerabilities found.", 0, 1)
         
-        # Write the HTML file
-        with open(filepath, 'w') as f:
-            f.write(doc.render())
+        # Save the PDF
+        timestamp = int(time.time())
+        filename = f"{scan_type.replace(' ', '_').lower()}_{timestamp}.pdf"
+        filepath = os.path.join(self.reports_dir, filename)
+        pdf.output(filepath)
         
-        return str(filepath)
+        return filepath
+    
+    def generate_html_report(self, title, results, scan_type, target):
+        """
+        Generate an HTML report
+        
+        Args:
+            title (str): Report title
+            results (list): Scan results
+            scan_type (str): Type of scan performed
+            target (str): Scan target (e.g., URL, hostname)
+            
+        Returns:
+            str: Path to the generated HTML file
+        """
+        # Create HTML content
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>{title}</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                h1 {{ color: #2c3e50; }}
+                h2 {{ color: #3498db; margin-top: 30px; }}
+                .details {{ background-color: #f8f9fa; padding: 10px; border-radius: 5px; }}
+                .result {{ background-color: #fff; border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 5px; }}
+                .severity-HIGH {{ color: #e74c3c; }}
+                .severity-MEDIUM {{ color: #f39c12; }}
+                .severity-LOW {{ color: #27ae60; }}
+                .severity-UNKNOWN {{ color: #7f8c8d; }}
+                table {{ border-collapse: collapse; width: 100%; }}
+                th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+                th {{ background-color: #f2f2f2; }}
+            </style>
+        </head>
+        <body>
+            <h1>{title}</h1>
+            <p>Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            
+            <div class="details">
+                <h2>Scan Details</h2>
+                <p><strong>Scan Type:</strong> {scan_type}</p>
+                <p><strong>Target:</strong> {target}</p>
+            </div>
+            
+            <h2>Scan Results</h2>
+        """
+        
+        if results:
+            html += "<div class='results'>"
+            
+            for i, result in enumerate(results, 1):
+                # Handle different result formats
+                if isinstance(result, dict):
+                    # For JSON/dict format
+                    vulnerability = result.get('type', 'Unknown')
+                    vulnerability_url = result.get('url', 'N/A')
+                    description = result.get('description', 'No description')
+                    severity = result.get('severity', 'Unknown')
+                elif isinstance(result, tuple) and len(result) >= 3:
+                    # For tuple format (vulnerability, url, description, [severity])
+                    vulnerability = result[0]
+                    vulnerability_url = result[1]
+                    description = result[2]
+                    severity = result[3] if len(result) > 3 else 'Unknown'
+                else:
+                    # Generic fallback
+                    vulnerability = "Unknown"
+                    vulnerability_url = "N/A"
+                    description = str(result)
+                    severity = "Unknown"
+                
+                html += f"""
+                <div class="result">
+                    <h3>Finding #{i}: <span class="severity-{severity}">{vulnerability} [{severity}]</span></h3>
+                    <p><strong>URL:</strong> {vulnerability_url}</p>
+                    <p><strong>Description:</strong><br>{description.replace('\n', '<br>')}</p>
+                </div>
+                """
+            
+            html += "</div>"
+        else:
+            html += "<p>No vulnerabilities found.</p>"
+        
+        html += """
+        </body>
+        </html>
+        """
+        
+        # Save the HTML
+        timestamp = int(time.time())
+        filename = f"{scan_type.replace(' ', '_').lower()}_{timestamp}.html"
+        filepath = os.path.join(self.reports_dir, filename)
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(html)
+        
+        # Open in browser
+        webbrowser.open(f"file://{filepath}")
+        
+        return filepath
+        
+    def generate_enhanced_pdf_report(self, title, results, scan_type, target, summary=None):
+        """
+        Generate an enhanced PDF report with AI-generated content
+        
+        Args:
+            title (str): Report title
+            results (list): Scan results with enhanced AI data
+            scan_type (str): Type of scan performed
+            target (str): Scan target (e.g., URL, hostname)
+            summary (str): Executive summary
+            
+        Returns:
+            str: Path to the generated PDF file
+        """
+        if not PDF_AVAILABLE:
+            raise ImportError("fpdf module not installed. Install it with 'pip install fpdf'")
+            
+        # Create PDF
+        pdf = FPDF()
+        pdf.add_page()
+        
+        # Set up title
+        pdf.set_font("Arial", "B", 16)
+        pdf.cell(0, 10, title, 0, 1, "C")
+        
+        # Date and time
+        pdf.set_font("Arial", "", 10)
+        pdf.cell(0, 10, f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", 0, 1, "R")
+        
+        # Executive summary if provided
+        if summary:
+            pdf.set_font("Arial", "B", 14)
+            pdf.cell(0, 10, "Executive Summary", 0, 1)
+            
+            pdf.set_font("Arial", "", 10)
+            for line in summary.split('\n'):
+                pdf.multi_cell(0, 6, line)
+                
+            pdf.cell(0, 6, "", 0, 1)  # Add some space
+        
+        # Scan details
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 10, "Scan Details", 0, 1)
+        
+        pdf.set_font("Arial", "", 10)
+        pdf.cell(0, 6, f"Scan Type: {scan_type}", 0, 1)
+        pdf.cell(0, 6, f"Target: {target}", 0, 1)
+        
+        # Count severity levels
+        severity_counts = {'CRITICAL': 0, 'HIGH': 0, 'MEDIUM': 0, 'LOW': 0, 'UNKNOWN': 0}
+        for result in results:
+            if isinstance(result, dict):
+                severity = result.get('severity', 'UNKNOWN')
+            else:
+                severity = result[3] if len(result) > 3 else 'UNKNOWN'
+            
+            severity_counts[severity] = severity_counts.get(severity, 0) + 1
+        
+        # Add severity summary
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 10, "Risk Summary", 0, 1)
+        
+        pdf.set_font("Arial", "", 10)
+        for severity, count in severity_counts.items():
+            if count > 0:
+                pdf.cell(0, 6, f"{severity}: {count}", 0, 1)
+        
+        # Results
+        if results:
+            pdf.add_page()
+            pdf.set_font("Arial", "B", 14)
+            pdf.cell(0, 10, "Vulnerability Details", 0, 1)
+            
+            # Sort results by risk score if available, then by severity
+            sorted_results = sorted(
+                results,
+                key=lambda r: (
+                    -(r.get('risk_score', 0) if isinstance(r, dict) else 0),
+                    {'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3, 'UNKNOWN': 4}.get(
+                        r.get('severity', 'UNKNOWN') if isinstance(r, dict) else r[3] if len(r) > 3 else 'UNKNOWN',
+                        5
+                    )
+                )
+            )
+            
+            # Add each result
+            for i, result in enumerate(sorted_results, 1):
+                pdf.set_font("Arial", "B", 12)
+                
+                # Handle different result formats
+                if isinstance(result, dict):
+                    # For JSON/dict format
+                    vulnerability = result.get('type', 'Unknown')
+                    vulnerability_url = result.get('url', 'N/A')
+                    description = result.get('description', 'No description')
+                    severity = result.get('severity', 'Unknown')
+                    risk_score = result.get('risk_score', 'N/A')
+                else:
+                    # For tuple format (vulnerability, url, description, severity)
+                    vulnerability = result[0]
+                    vulnerability_url = result[1]
+                    description = result[2]
+                    severity = result[3] if len(result) > 3 else 'Unknown'
+                    risk_score = 'N/A'
+                
+                # Add finding header with risk score
+                risk_score_text = f" (Risk Score: {risk_score})" if risk_score != 'N/A' else ""
+                pdf.cell(0, 10, f"Finding #{i}: {vulnerability} [{severity}]{risk_score_text}", 0, 1)
+                
+                # Add URL
+                pdf.set_font("Arial", "", 10)
+                pdf.cell(0, 6, f"URL: {vulnerability_url}", 0, 1)
+                
+                # Check if description contains AI-suggested mitigations
+                if "AI-Suggested Mitigations:" in description:
+                    # Split description and mitigations
+                    parts = description.split("AI-Suggested Mitigations:", 1)
+                    main_desc = parts[0].strip()
+                    mitigations = "AI-Suggested Mitigations:" + parts[1]
+                    
+                    # Add main description
+                    pdf.multi_cell(0, 6, f"Description: {main_desc}")
+                    
+                    # Add mitigations with formatting
+                    pdf.set_font("Arial", "B", 10)
+                    pdf.cell(0, 6, "AI-Suggested Mitigations:", 0, 1)
+                    
+                    pdf.set_font("Arial", "", 10)
+                    for line in parts[1].strip().split('\n'):
+                        pdf.multi_cell(0, 6, line)
+                else:
+                    # Just add the whole description
+                    pdf.multi_cell(0, 6, f"Description: {description}")
+                
+                # Add separator
+                pdf.cell(0, 6, "", 0, 1)
+                pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+                pdf.cell(0, 6, "", 0, 1)
+        else:
+            pdf.set_font("Arial", "", 10)
+            pdf.cell(0, 10, "No vulnerabilities found.", 0, 1)
+        
+        # Save the PDF
+        timestamp = int(time.time())
+        filename = f"{scan_type.replace(' ', '_').lower()}_enhanced_{timestamp}.pdf"
+        filepath = os.path.join(self.reports_dir, filename)
+        pdf.output(filepath)
+        
+        return filepath
+        
+    def generate_enhanced_html_report(self, title, results, scan_type, target, summary=None):
+        """
+        Generate an enhanced HTML report with AI-generated content
+        
+        Args:
+            title (str): Report title
+            results (list): Scan results with enhanced AI data
+            scan_type (str): Type of scan performed
+            target (str): Scan target (e.g., URL, hostname)
+            summary (str): Executive summary
+            
+        Returns:
+            str: Path to the generated HTML file
+        """
+        # Create HTML content
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>{title}</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                h1 {{ color: #2c3e50; }}
+                h2 {{ color: #3498db; margin-top: 30px; }}
+                h3 {{ color: #2980b9; }}
+                .details {{ background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
+                .summary {{ background-color: #e8f4f8; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
+                .result {{ background-color: #fff; border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+                .severity-CRITICAL {{ color: #7d0000; }}
+                .severity-HIGH {{ color: #e74c3c; }}
+                .severity-MEDIUM {{ color: #f39c12; }}
+                .severity-LOW {{ color: #27ae60; }}
+                .severity-UNKNOWN {{ color: #7f8c8d; }}
+                .risk-score {{ font-size: 16px; font-weight: bold; margin: 10px 0; }}
+                .risk-CRITICAL {{ color: #7d0000; }}
+                .risk-HIGH {{ color: #e74c3c; }}
+                .risk-MEDIUM {{ color: #f39c12; }}
+                .risk-LOW {{ color: #27ae60; }}
+                .mitigations {{ background-color: #f0f7fb; padding: 10px; border-left: 4px solid #3498db; margin: 10px 0; }}
+                table {{ border-collapse: collapse; width: 100%; margin: 15px 0; }}
+                th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+                th {{ background-color: #f2f2f2; }}
+                .description {{ line-height: 1.5; }}
+            </style>
+        </head>
+        <body>
+            <h1>{title}</h1>
+            <p>Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        """
+        
+        # Add executive summary if provided
+        if summary:
+            html += f"""
+            <div class="summary">
+                <h2>Executive Summary</h2>
+                {summary.replace('\n', '<br>')}
+            </div>
+            """
+        
+        # Add scan details
+        html += f"""
+        <div class="details">
+            <h2>Scan Details</h2>
+            <p><strong>Scan Type:</strong> {scan_type}</p>
+            <p><strong>Target:</strong> {target}</p>
+        """
+        
+        # Count severity levels
+        severity_counts = {'CRITICAL': 0, 'HIGH': 0, 'MEDIUM': 0, 'LOW': 0, 'UNKNOWN': 0}
+        for result in results:
+            if isinstance(result, dict):
+                severity = result.get('severity', 'UNKNOWN')
+            else:
+                severity = result[3] if len(result) > 3 else 'UNKNOWN'
+            
+            severity_counts[severity] = severity_counts.get(severity, 0) + 1
+        
+        # Add severity summary
+        html += """
+            <h3>Risk Summary</h3>
+            <table>
+                <tr>
+                    <th>Severity</th>
+                    <th>Count</th>
+                </tr>
+        """
+        
+        for severity, count in severity_counts.items():
+            if count > 0:
+                html += f"""
+                <tr>
+                    <td class="severity-{severity}">{severity}</td>
+                    <td>{count}</td>
+                </tr>
+                """
+                
+        html += """
+            </table>
+        </div>
+        
+        <h2>Vulnerability Details</h2>
+        """
+        
+        # Add results
+        if results:
+            # Sort results by risk score if available, then by severity
+            sorted_results = sorted(
+                results,
+                key=lambda r: (
+                    -(r.get('risk_score', 0) if isinstance(r, dict) else 0),
+                    {'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3, 'UNKNOWN': 4}.get(
+                        r.get('severity', 'UNKNOWN') if isinstance(r, dict) else r[3] if len(r) > 3 else 'UNKNOWN',
+                        5
+                    )
+                )
+            )
+            
+            for i, result in enumerate(sorted_results, 1):
+                # Handle different result formats
+                if isinstance(result, dict):
+                    # For JSON/dict format
+                    vulnerability = result.get('type', 'Unknown')
+                    vulnerability_url = result.get('url', 'N/A')
+                    description = result.get('description', 'No description')
+                    severity = result.get('severity', 'Unknown')
+                    risk_score = result.get('risk_score', None)
+                else:
+                    # For tuple format (vulnerability, url, description, severity)
+                    vulnerability = result[0]
+                    vulnerability_url = result[1]
+                    description = result[2]
+                    severity = result[3] if len(result) > 3 else 'Unknown'
+                    risk_score = None
+                
+                # Determine risk level for styling
+                risk_level = "UNKNOWN"
+                if risk_score is not None:
+                    if risk_score >= 85:
+                        risk_level = "CRITICAL"
+                    elif risk_score >= 70:
+                        risk_level = "HIGH"
+                    elif risk_score >= 40:
+                        risk_level = "MEDIUM"
+                    else:
+                        risk_level = "LOW"
+                
+                html += f"""
+                <div class="result">
+                    <h3>Finding #{i}: <span class="severity-{severity}">{vulnerability} [{severity}]</span></h3>
+                    <p><strong>URL:</strong> {vulnerability_url}</p>
+                """
+                
+                # Add risk score if available
+                if risk_score is not None:
+                    html += f"""
+                    <p class="risk-score risk-{risk_level}">Risk Score: {risk_score}/100</p>
+                    """
+                
+                # Check if description contains AI-suggested mitigations
+                if "AI-Suggested Mitigations:" in description:
+                    # Split description and mitigations
+                    parts = description.split("AI-Suggested Mitigations:", 1)
+                    main_desc = parts[0].strip()
+                    mitigations = parts[1].strip()
+                    
+                    # Add main description
+                    html += f"""
+                    <div class="description">
+                        <p><strong>Description:</strong><br>{main_desc.replace('\n', '<br>')}</p>
+                    </div>
+                    
+                    <div class="mitigations">
+                        <h4>AI-Suggested Mitigations:</h4>
+                        {mitigations.replace('\n', '<br>')}
+                    </div>
+                    """
+                else:
+                    # Just add the whole description
+                    html += f"""
+                    <div class="description">
+                        <p><strong>Description:</strong><br>{description.replace('\n', '<br>')}</p>
+                    </div>
+                    """
+                
+                html += "</div>"
+        else:
+            html += "<p>No vulnerabilities found.</p>"
+        
+        html += """
+        </body>
+        </html>
+        """
+        
+        # Save the HTML
+        timestamp = int(time.time())
+        filename = f"{scan_type.replace(' ', '_').lower()}_enhanced_{timestamp}.html"
+        filepath = os.path.join(self.reports_dir, filename)
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(html)
+        
+        # Open in browser
+        webbrowser.open(f"file://{filepath}")
+        
+        return filepath
